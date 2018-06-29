@@ -128,6 +128,9 @@ def main():
 
     ctx = smbc.Context(auth_fn=get_auth_data)
 
+    print("Started! Looking for scans...")
+    print(parser.format_values())
+
     timer = rt.RepeatedTimer(60, loop, ctx, options)
 
 
