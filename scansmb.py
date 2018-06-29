@@ -105,7 +105,7 @@ def loop(ctx, options):
 
 def main():
     parser = configargparse.ArgParser(default_config_files=['scansmb.conf'])
-    parser.add("-c", "--config", is_config_file=True, help="config file path")
+    parser.add("-c", "--config", is_config_file=True, help="config file path", env_var="CONFIG")
     parser.add("-p", "--printer-host", required=True,
                help="printer hostname", env_var="PRINTER_HOST")
     parser.add("--smtp-user", required=True,

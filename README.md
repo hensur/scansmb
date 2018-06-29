@@ -23,5 +23,10 @@ A sample configration that configures the smtp server is provided in `scansmb.ex
 
 Start it on the command line like this (this example makes use of all means of configuration):
 ```
-PRINTER_HOST=192.168.8.111 python3 scansmb.py -c scansmb.conf -f scan@example.com -t you@example.con
+PRINTER_HOST=192.168.8.111 python3 scansmb.py -c scansmb.conf -f scan@example.com -t you@example.com
+```
+
+Or use the docker image at [dockerhub](https://hub.docker.com/r/hensur/scansmb):
+```
+docker run -v $(pwd)/scansmb.conf:/scansmb.conf -e PRINTER_HOST=192.168.8.111 -e MAIL_FROM=scan@example.com -e MAIL_TO=you@example.com -e CONFIG=/scansmb.conf hensur/scansmb
 ```
