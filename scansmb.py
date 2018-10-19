@@ -3,20 +3,20 @@
 Script to automatically send e-mails if a new file was found on the scanner's sdcard
 """
 
-import sys
 import re
-import smbc
-import os
-import hashlib
-import lib.repeatedtimer as rt
 from datetime import datetime
-import configargparse
-
+import logging
 import smtplib
-from email.message import EmailMessage
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+import configargparse
+import smbc
+import lib.repeatedtimer as rt
+
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("scansmb")
 
 
 def get_auth_data(server, share, workgroup, username, password):
@@ -91,15 +91,17 @@ Scan-Bot
 
 
 def loop(ctx, options):
+    logger.debug("starting loop")
     try:
         for file in ls(ctx, scan_path(options.printer_host), type=smbc.FILE, recursive=True):
+            logger.info("found file {}".format(file))
             mtime = datetime.fromtimestamp(ctx.stat(file)[8])
             dl = ctx.open(file).read()
             sendMail(dl, mtime, options.mail_from, options.mail_to, options.smtp_user,
                      options.smtp_password, options.smtp_host, options.smtp_port)
             ctx.unlink(file)  # Remove the scan after sending the email
     except Exception as e:
-        print("Error occured, file: {}".format(file))
+        logger.info("Error occured, file: {}".format(file))
         print(e.with_traceback())
 
 
@@ -128,9 +130,10 @@ def main():
 
     ctx = smbc.Context(auth_fn=get_auth_data)
 
-    print("Started! Looking for scans...")
-    print(parser.format_values())
+    logger.info("Started! Looking for scans...")
+    logger.info(parser.format_values())
 
+    loop(ctx, options)
     timer = rt.RepeatedTimer(60, loop, ctx, options)
 
 
