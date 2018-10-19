@@ -70,7 +70,7 @@ def sendMail(file, mtime, mail_from, mail_to, smtp_user, smtp_password, smtp_hos
 
     msg["Subject"] = "New Scan!"
     msg["From"] = mail_from
-    msg["To"] = mail_to
+    msg["To"] = ", ".join(mail_to)
 
     pdf = MIMEApplication(file, "pdf")
     pdf.add_header("Content-Disposition", "attachment",
@@ -97,12 +97,12 @@ def loop(ctx, options):
             logger.info("found file {}".format(file))
             mtime = datetime.fromtimestamp(ctx.stat(file)[8])
             dl = ctx.open(file).read()
-            sendMail(dl, mtime, options.mail_from, options.mail_to, options.smtp_user,
+            to = options.mail_to.split(",")
+            sendMail(dl, mtime, options.mail_from, to, options.smtp_user,
                      options.smtp_password, options.smtp_host, options.smtp_port)
             ctx.unlink(file)  # Remove the scan after sending the email
     except Exception as e:
-        logger.info("Error occured, file: {}".format(file))
-        print(e.with_traceback())
+        logger.debug(e.with_traceback())
 
 
 def main():
