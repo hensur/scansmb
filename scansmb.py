@@ -6,13 +6,13 @@ Script to automatically send e-mails if a new file was found on the scanner's sd
 import re
 from datetime import datetime
 import logging
+from apscheduler.schedulers.background import BlockingScheduler
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import configargparse
 import smbc
-import lib.repeatedtimer as rt
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -134,7 +134,9 @@ def main():
     logger.info(parser.format_values())
 
     loop(ctx, options)
-    timer = rt.RepeatedTimer(60, loop, ctx, options)
+    scheduler = BlockingScheduler() 
+    scheduler.add_job(loop, 'interval', minutes=1, args=[ctx, options])
+    scheduler.start()
 
 
 if __name__ == "__main__":
