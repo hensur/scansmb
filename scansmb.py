@@ -128,12 +128,11 @@ def main():
     if options.mail_from is None:
         options.mail_from = options.smtp_user
 
-    ctx = smbc.Context(auth_fn=get_auth_data)
+    ctx = smbc.Context(auth_fn=get_auth_data, client_ntlmv2_auth="no", client_use_spnego="no")
 
     logger.info("Started! Looking for scans...")
     logger.info(parser.format_values())
 
-    loop(ctx, options)
     scheduler = BlockingScheduler() 
     scheduler.add_job(loop, 'interval', minutes=1, args=[ctx, options])
     scheduler.start()
