@@ -39,40 +39,40 @@ def scan_path(hostname, model="epson"):
         return ""
 
 
-def get_path(entries, type, root=""):
+def get_path(entries, ent_type, root=""):
     """
     Return every dirname in this dir that is not ./.. or not of the given type
     """
     prefix = root + "/" if len(root) > 0 else ""
-    return list(map(lambda x: prefix + x.name, filter(lambda x: x.smbc_type == type and not re.match(r'^[\.]+$', x.name), entries)))
+    return list(map(lambda x: prefix + x.name, filter(lambda x: x.smbc_type == ent_type and not re.match(r'^[\.]+$', x.name), entries)))
 
 
-def ls(ctx, root, type=smbc.DIR, recursive=False):
+def ls(ctx, root, ent_type=smbc.DIR, recursive=False):
     entries = ctx.opendir(root).getdents()
 
-    dirnames = get_path(entries, smbc.DIR, root)
+    dir_names = get_path(entries, smbc.DIR, root)
 
-    if type == smbc.FILE:
-        filenames = get_path(entries, smbc.FILE, root)
+    if ent_type == smbc.FILE:
+        file_names = get_path(entries, smbc.FILE, root)
 
-    if recursive and len(dirnames) > 0:
+    if recursive and len(dir_names) > 0:
         recv_dirs = []
-        recv_dirs.extend(filenames if type == smbc.FILE else dirnames)
-        for d in dirnames:
-            recv_dirs.extend(ls(ctx, d, type, recursive=True))
+        recv_dirs.extend(file_names if ent_type == smbc.FILE else dir_names)
+        for d in dir_names:
+            recv_dirs.extend(ls(ctx, d, ent_type, recursive=True))
         return recv_dirs
 
-    return dirnames
+    return dir_names if ent_type == smbc.DIR else file_names
 
 
-def sendMail(file, mtime, mail_from, mail_to, smtp_user, smtp_password, smtp_host, smtp_port):
+def sendMail(document, mtime, mail_from, mail_to, smtp_user, smtp_password, smtp_host, smtp_port):
     msg = MIMEMultipart()
 
     msg["Subject"] = "New Scan!"
     msg["From"] = mail_from
     msg["To"] = ", ".join(mail_to)
 
-    pdf = MIMEApplication(file, "pdf")
+    pdf = MIMEApplication(document, "pdf")
     pdf.add_header("Content-Disposition", "attachment",
                    filename="scan-{timestamp}.pdf".format(timestamp=mtime.strftime("%Y_%m_%d-%H%M%S")))
     msg.attach(pdf)
@@ -93,7 +93,7 @@ Scan-Bot
 def loop(ctx, options):
     logger.debug("starting loop")
     try:
-        for file in ls(ctx, scan_path(options.printer_host), type=smbc.FILE, recursive=True):
+        for file in ls(ctx, scan_path(options.printer_host), ent_type=smbc.FILE, recursive=True):
             logger.info("found file {}".format(file))
             mtime = datetime.fromtimestamp(ctx.stat(file)[8])
             dl = ctx.open(file).read()
@@ -102,7 +102,7 @@ def loop(ctx, options):
                      options.smtp_password, options.smtp_host, options.smtp_port)
             ctx.unlink(file)  # Remove the scan after sending the email
     except Exception as e:
-        logger.debug(e.with_traceback())
+        logger.debug("poll failed")
 
 
 def main():
