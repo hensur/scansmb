@@ -2,15 +2,19 @@
 """
 Script to automatically send e-mails if a new file was found on the scanner's sdcard
 """
+import os
 
+import magic
 import re
+from collections import namedtuple
 from datetime import datetime
 import logging
 from apscheduler.schedulers.background import BlockingScheduler
 import smtplib
+from email.mime.nonmultipart import MIMENonMultipart
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
+from email import encoders
 import configargparse
 import smbc
 
@@ -18,6 +22,9 @@ import smbc
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("scansmb")
 
+MailConfig = namedtuple('MailConfig', ['mail_from', 'mail_to', 'user', 'password', 'host', 'port'])
+
+mime = magic.Magic(mime=True)
 
 def get_auth_data(server, share, workgroup, username, password):
     """
@@ -65,17 +72,21 @@ def ls(ctx, root, ent_type=smbc.DIR, recursive=False):
     return dir_names if ent_type == smbc.DIR else file_names
 
 
-def sendMail(document, mtime, mail_from, mail_to, smtp_user, smtp_password, smtp_host, smtp_port):
+def sendMail(document, ext, mtime, mail_config):
     msg = MIMEMultipart()
 
     msg["Subject"] = "New Scan!"
-    msg["From"] = mail_from
-    msg["To"] = ", ".join(mail_to)
+    msg["From"] = mail_config.mail_from
+    msg["To"] = mail_config.mail_to
 
-    pdf = MIMEApplication(document, "pdf")
-    pdf.add_header("Content-Disposition", "attachment",
-                   filename="scan-{timestamp}.pdf".format(timestamp=mtime.strftime("%Y_%m_%d-%H%M%S")))
-    msg.attach(pdf)
+    mime_type = mime.from_buffer(document).split("/", 1)
+
+    attachment = MIMENonMultipart(mime_type[0], mime_type[1])
+    attachment.add_header("Content-Disposition", "attachment",
+                   filename="scan-{timestamp}.{ext}".format(timestamp=mtime.strftime("%Y_%m_%d-%H%M%S"), ext=ext))
+    attachment.set_payload(document)
+    encoders.encode_base64(attachment)
+    msg.attach(attachment)
     msg.attach(MIMEText("""Hey!
 
 I found a new scan on your printer. You can find it in the attachments :)
@@ -84,25 +95,24 @@ Regards
 Scan-Bot
 """))
 
-    s = smtplib.SMTP(smtp_host, smtp_port)
+    s = smtplib.SMTP(mail_config.host, mail_config.port)
     s.starttls()
-    s.login(smtp_user, smtp_password)
+    s.login(mail_config.user, mail_config.password)
     s.send_message(msg)
 
 
-def loop(ctx, options):
+def loop(ctx, printer_host, mail_config):
     logger.debug("starting loop")
     try:
-        for file in ls(ctx, scan_path(options.printer_host), ent_type=smbc.FILE, recursive=True):
+        for file in ls(ctx, scan_path(printer_host), ent_type=smbc.FILE, recursive=True):
             logger.info("found file {}".format(file))
             mtime = datetime.fromtimestamp(ctx.stat(file)[8])
+            ext = os.path.splitext(file)[1].lower().strip('.')
             dl = ctx.open(file).read()
-            to = options.mail_to.split(",")
-            sendMail(dl, mtime, options.mail_from, to, options.smtp_user,
-                     options.smtp_password, options.smtp_host, options.smtp_port)
+            sendMail(dl, ext, mtime, mail_config)
             ctx.unlink(file)  # Remove the scan after sending the email
     except Exception as e:
-        logger.debug("poll failed")
+        logger.error(e)
 
 
 def main():
@@ -129,12 +139,14 @@ def main():
         options.mail_from = options.smtp_user
 
     ctx = smbc.Context(auth_fn=get_auth_data, client_ntlmv2_auth="no", client_use_spnego="no")
+    mail_config = MailConfig(mail_from=options.mail_from, mail_to=options.mail_to, user=options.smtp_user,
+                             password=options.smtp_password, host=options.smtp_host, port=options.smtp_port)
 
     logger.info("Started! Looking for scans...")
     logger.info(parser.format_values())
 
     scheduler = BlockingScheduler() 
-    scheduler.add_job(loop, 'interval', minutes=1, args=[ctx, options])
+    scheduler.add_job(loop, 'interval', minutes=1, args=[ctx, options.printer_host, mail_config])
     scheduler.start()
 
 

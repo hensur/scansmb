@@ -1,3 +1,4 @@
 configargparse
 apscheduler
 https://github.com/hensur/pysmbc/archive/master.zip
+python-magic
