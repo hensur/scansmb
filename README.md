@@ -13,8 +13,15 @@ The printer has to be equipped with a sd card and the smb fileshare has to be en
 
 It depends on:
 
-- [pysmbc](https://github.com/hamano/pysmbc)
+- [pysmbc](https://github.com/hensur/pysmbc)
 - [configargparse](https://github.com/bw2/ConfigArgParse)
+- [python-magic](https://github.com/ahupp/python-magic)
+- [apscheduler](https://github.com/agronholm/apscheduler)
+
+Install them with pip:
+```
+pip install -r requirements.txt
+```
 
 ## Usage
 
@@ -25,6 +32,8 @@ Start it on the command line like this (this example makes use of all means of c
 ```
 PRINTER_HOST=192.168.8.111 python3 scansmb.py -c scansmb.conf -f scan@example.com -t you@example.com
 ```
+
+Multiple Recipients can be supplied as a comma separated list: `scan@example.com,scan2@example.com`
 
 Or use the docker image at [dockerhub](https://hub.docker.com/r/hensur/scansmb):
 ```
