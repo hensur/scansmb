@@ -145,6 +145,7 @@ def main():
     logger.info("Started! Looking for scans...")
     logger.info(parser.format_values())
 
+    loop(ctx, options.printer_host, mail_config)
     scheduler = BlockingScheduler() 
     scheduler.add_job(loop, 'interval', minutes=1, args=[ctx, options.printer_host, mail_config])
     scheduler.start()
